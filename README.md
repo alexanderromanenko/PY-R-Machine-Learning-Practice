@@ -8,5 +8,8 @@ This repository consists of codes and reports for various methods of Machine Lea
 The data consists of 3,500 e-mails, which are used to train and validate the model. The data was sourced from: https://archive.ics.uci.edu/ml/machine-learning-databases/00228/
 
 3) Decision Tree Classification. Loan approval decisions  
-Data from Lending club was used. Cleaning is done using Python, while the analysis is conducted using R.
+Data from Lending club was used. Cleaning is done using Python, while the analysis is conducted using R.  
+
+4) Clustering. Analysis of Argentinian footballers
+Data was scraped from FIFAus website for 300 top Argentinian players
 
