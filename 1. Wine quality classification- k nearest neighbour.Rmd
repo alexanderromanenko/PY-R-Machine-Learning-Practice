@@ -1,0 +1,126 @@
+
+```{r}
+library("SDMTools")
+library("class")
+library("ggplot2")
+```
+
+```{r}
+set.seed(1)
+```
+
+
+1. loading the data file
+
+```{r}
+#load data
+wine_quality <- read.csv("winequality-white.csv", sep = ";")
+```
+
+2. constructing a new binary column a good wine that indicates whether the wine is good or not
+
+```{r}
+#add a new column 'good_wine' where 1 if quality >= 6 and 0 if quality < 6
+wine_quality$good_wine <- as.numeric(wine_quality$quality >= 6)
+```
+
+3. spliting the data set into a training data set (~40%), a validation data set (~30%) and a test data set (~30%) - make sure you shuffle the record before the split
+
+```{r}
+#shuffle data
+wine_quality <- wine_quality[sample(nrow(wine_quality), nrow(wine_quality)), ] 
+
+#training data set (~ 40%)
+Training <- wine_quality[1 : (0.4*nrow(wine_quality)), ]
+
+#validation data set (~ 30%)
+Validation<- wine_quality[((0.4*nrow(wine_quality)) + 1) : (0.7*nrow(wine_quality)), ]
+
+#test data set (~ 30%)
+Test <- wine_quality[((0.7*nrow(wine_quality)) + 1) : (nrow(wine_quality) + 1), ]
+```
+
+4. normalising the data according to the Z-score transform
+
+```{r}
+#training data set
+Training_zscore <- as.data.frame(scale(Training[ ,-13], center = TRUE, scale = TRUE))
+#adding again good.wine column
+for(i in 1:nrow(Training_zscore)) Training_zscore[i, 'good_wine'] <- Training[i ,"good_wine"]
+
+#validation data set
+Validation_zscore<- as.data.frame(scale(Validation[ ,-13], center = TRUE, scale = TRUE))
+#adding again good.wine column
+for(i in 1:nrow(Validation_zscore)) Validation_zscore[i, 'good_wine'] <- Validation[i ,"good_wine"]
+
+#test data set
+Test_zscore <- as.data.frame(scale(Test[ ,-13], center = TRUE, scale = TRUE))
+#adding again good.wine column
+for(i in 1:nrow(Test_zscore)) Test_zscore[i, 'good_wine'] <- Test[i ,"good_wine"]
+```
+
+5. loading and training the k-Nearest Neighbours classifiers for k = 1, .., 80
+6. evaluating each classifier on the validation set and selecting the best classifier
+
+```{r}
+#evaluate each classifier on the validation set and select the best classifier with the highest accuracy 
+Accuracy2 <- NULL
+for (i in 1:80){
+  M <- confusion.matrix(knn(train = Training_zscore[, 1:11], test = Validation_zscore[, 1:11], cl = Training_zscore[, 13], k = i), Validation_zscore$good_wine)
+  misclassification_rate = (M[2] + M[3]) / sum(M)
+  accuracy2 = 1 - misclassification_rate
+  Accuracy2[i] <- accuracy2
+}
+evaluation <- data.frame(Accuracy2)
+
+best_k <- row(evaluation)[evaluation == max(evaluation)] # the best classifier k
+max(evaluation) # the highest accuracy
+best_k #k that gives us the highest accuracy
+```
+
+Best model is for k=12, with accuracy = 0.7671886
+
+Next step is for us to find a generalisation error. Generalization error helps us to establish how accurately a model predicts outcome values for new data. Here we check what percentage of test samples is correctly classified using the model identified during validation.
+
+
+7. predicting the generalisation error using the test data set; presenting the result in a confusion matrix.
+
+```{r}
+#create confusion matrix
+M2 <- confusion.matrix(knn(Training_zscore[, 1:11], Test_zscore[, 1:11], Training_zscore[, 13], k = best_k), Test_zscore$good_wine)
+M2 
+
+#calculate the generalisation error - what percentage of the test samples is correctly classi???ed 
+generalisation_error = (M2[2] + M2[3]) / sum(M2)
+generalisation_error
+```
+
+Generalisation Error is equal to 0.2598639.
+
+```{r}
+#preparing data for misclassification rate of training data
+AccTrain <- NULL
+for (i in 1:80){
+  M <- confusion.matrix(knn(train = Training_zscore[, 1:11], test = Training_zscore[, 1:11], cl = Training_zscore[, 13], k = i), Training_zscore$good_wine)
+  misclassification_rate = (M[2] + M[3]) / sum(M)
+  AccTrain[i] = misclassification_rate
+}
+
+#preparing data for misclassification rate of training data
+AccVal <- NULL
+for (i in 1:80){
+  M <- confusion.matrix(knn(train = Training_zscore[, 1:11], test = Validation_zscore[, 1:11], cl = Training_zscore[, 13], k = i), Validation_zscore$good_wine)
+  misclassification_rate = (M[2] + M[3]) / sum(M)
+  AccVal[i] = misclassification_rate}
+
+plot(AccVal,type="l", col="red", ylim=c(0,0.3), ann=FALSE)
+lines(AccTrain,type="l", col="blue")
+title(ylab="Misclassification Rate")
+title(xlab="k-value")
+title(main="Accuracy of Wine Quality Identification")
+points(x=best_k,y=generalisation_error, col="green",cex=1.8,pch=18)
+
+```
+
+In our classification problem, the range of k is already defined between 1 and 80. Accuracy (1 - misspecification error) is used as the basic performance measure and as a result, the optimal k is the k which is obtained when the accuracy reaches its highest value (or in other words when the misspecification error reaches its lowest value). Here we should note that accuracy is not always enough in order to judge if the classifier is well-suited for the data set. As was mentioned in class, there are occasions when high accuracy does not necessarily mean that the classifier is good. It is important to be very critical of your chosen classifier and not solely rely on the performance measures. However using performance measure is a good start. 
+
